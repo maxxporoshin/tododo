@@ -1,11 +1,37 @@
 <!DOCTYPE html>
-<html ng-app>
+<html ng-app="ToDoDo">
     <head>
         <meta charset="utf-8">
         <title>ToDoDo</title>
         <script type="text/javascript" src="angular/angular.min.js"></script>
+        <script type="text/javascript" src="app.js"></script>
+        <link rel="stylesheet" href="bootstrap/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="style.css">
     </head>
     <body>
-        <input ng-model="name"> {{name}}
+        <div ng-controller="TodoListController as todoList">
+            <ul>
+                <li ng-repeat="todo in todoList.todos">
+                    <label>
+                        <span>{{todo.text}}</span>
+                    </label>
+                </li>
+            </ul>
+            <form ng-submit="todoList.addTodo()">
+                <input type="text" ng-model="todoList.todoText" size="30">
+                <input class="btn-primary" type="submit" value="add">
+            </form>
+        </div>
+        <div ng-controller="AuthController as auth">
+            <input type="button" ng-click="auth.showLoginForm()" ng-hide="auth.logging">
+            <div ng-show="auth.logging">
+                <input type="text" ng-model="auth.username" placeholder="username"><br>
+                <input type="password" ng-model="auth.pasword" placeholder="password"><br>
+                <br>
+                <input type="button" ng-click="auth.register()" class="btn-primary" value="register">
+                <input type="button" ng-click="auth.login()" class="btn-primary" value="login">
+                <input type="button" ng-click="auth.logout()" ng-show="auth.isAuthed()" class="btn-primary" value="logout">
+            </div>
+        </div>
     </body>
 </html>

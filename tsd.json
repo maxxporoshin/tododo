@@ -49,6 +49,24 @@
     },
     "mime/mime.d.ts": {
       "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "mongoose/mongoose.d.ts": {
+      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "express-jwt/express-jwt.d.ts": {
+      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "express-unless/express-unless.d.ts": {
+      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "body-parser/body-parser.d.ts": {
+      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "morgan/morgan.d.ts": {
+      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "jsonwebtoken/jsonwebtoken.d.ts": {
+      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
     }
   }
 }
