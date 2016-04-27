@@ -2,35 +2,159 @@
 <html ng-app="ToDoDo">
     <head>
         <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
         <title>ToDoDo</title>
         <script type="text/javascript" src="angular/angular.min.js"></script>
+        <script type="text/javascript" src="angular-jwt/dist/angular-jwt.min.js"></script>
         <script type="text/javascript" src="app.js"></script>
         <link rel="stylesheet" href="bootstrap/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="style.css">
     </head>
-    <body>
-        <div ng-controller="TodoListController as todoList">
-            <ul>
-                <li ng-repeat="todo in todoList.todos">
-                    <label>
-                        <span>{{todo.text}}</span>
-                    </label>
-                </li>
-            </ul>
-            <form ng-submit="todoList.addTodo()">
-                <input type="text" ng-model="todoList.todoText" size="30">
-                <input class="btn-primary" type="submit" value="add">
-            </form>
+    <body ng-controller="MainController as main">
+        <!-- Main "page" -->
+        <div ng-show="main.isAuthed()">
+            <div class="container-fluid">
+                <div class="row-fluid">
+                    <!-- User panel -->
+                    <div class="col-xs-12">
+                        <input type="button" class="btn btn-default pull-right" value="Logout"
+                            ng-click="main.logout()">
+                        <div class="pull-right username right-buffer">{{main.currentUser._doc.username}}</div>
+                    </div>
+                    <!-- Search panel -->
+                    <div class="col-xs-12 top-buffer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-xs-12">
+                                <input type="text" class="form-control" value="" ng-model="main.search" placeholder="Search">
+                            </div>
+                            <div class="col-md-2 col-xs-6">
+                                <button class="btn btn-default" ng-click="main.order('priorities.selectedOption')">Priority</button>
+                                <span class="sortorder" ng-show="main.predicate === 'priorities.selectedOption'"
+                                    ng-class="{reverse:main.reverse}"></span>
+                            </div>
+                            <div class="col-md-2 col-xs-6">
+                                <button class="btn btn-default" ng-click="main.order('date')">Date</button>
+                                <span class="sortorder" ng-show="main.predicate === 'date'" ng-class="{reverse:main.reverse}"></span>
+                            </div>
+                            <div class="col-md-2 col-xs-12">
+                                <select class="form-control" name="done"
+                                    ng-options="option.name for option in main.doneFilter.options track by option.id"
+                                    ng-model="main.doneFilter.selectedOption">
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- List of todos -->
+                    <div ng-repeat="todo in main.todos.list | filter:main.search | filter:main.donePredicate
+                        | orderBy:main.predicate:main.reverse" class="col-md-6 col-xs-12">
+                        <div class="span12 top-buffer">
+                            <form class="form-group" ng-submit="">
+                                <!-- Textarea -->
+                                <div class="col-xs-12">
+                                    <textarea rows="2" class="form-control" ng-readonly="!todo.editing"
+                                        ng-model="todo.text"></textarea>
+                                </div>
+                                <!-- Priority and date -->
+                                <div class="row-fluid">
+                                    <div class="col-md-6 col-xs-12">
+                                        <select class="form-control" name="priority"
+                                            ng-options="option.name for option in todo.priorities.options track by option.id"
+                                            ng-model="todo.priorities.selectedOption" ng-show="todo.editing">
+                                        </select>
+                                        <div class="form-control todo-text" ng-show="!todo.editing">
+                                            {{todo.priorities.selectedOption.name}}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 col-xs-12">
+                                        <input type="date" class="form-control" ng-show="todo.editing" ng-model="todo.date">
+                                        <div class="form-control todo-text" ng-show="!todo.editing">
+                                            {{todo.date | date : "MM/dd/yyyy"}}
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Buttons -->
+                                <div class="col-xs-12">
+                                    <input type="button" class="btn btn-danger" value="Delete"
+                                        ng-click="main.deleteTodo(todo)" ng-show="todo.editing">
+                                    <input type="button" class="btn btn-success pull-right" value="Done"
+                                        ng-click="main.doTodo(todo)" ng-show="!todo.editing && !todo.done" ng-disabled="main.editingTodo">
+                                    <input type="button" class="btn btn-default pull-right" value="Undone"
+                                        ng-click="main.undoTodo(todo)" ng-show="!todo.editing && todo.done" ng-disabled="main.editingTodo">
+                                    <input type="button" class="btn btn-default pull-right right-buffer" value="Edit"
+                                        ng-click="main.editTodo(todo)" ng-show="!todo.editing && !todo.done" ng-disabled="main.editingTodo">
+                                    <input type="button" class="btn btn-success pull-right" value="Save"
+                                        ng-click="main.saveTodo(todo)" ng-show="todo.editing">
+                                    <input type="button" class="btn btn-default pull-right right-buffer" value="Cancel"
+                                        ng-click="main.cancelTodoEditing(todo)" ng-show="todo.editing">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <!-- Add todo form -->
+                    <div class="col-md-6 col-xs-12">
+                        <div class="span12 top-buffer">
+                            <form class="form-group" ng-submit="main.addTodo()">
+                                <!-- Textarea -->
+                                <div class="col-xs-12" ng-show="main.addingTodo">
+                                    <textarea rows="2" class="form-control" ng-model="main.todos.newTodo.text"></textarea>
+                                </div>
+                                <!-- Priority and date -->
+                                <div class="row-fluid" ng-show="main.addingTodo">
+                                    <div class="col-md-6 col-xs-12">
+                                        <select class="form-control" name="priority"
+                                            ng-options="option.name for option in main.todos.newTodo.priorities.options
+                                                track by option.id"
+                                            ng-model="main.todos.newTodo.priorities.selectedOption">
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-xs-12" ng-show="main.addingTodo">
+                                        <input type="date" class="form-control" ng-model="main.todos.newTodo.date">
+                                    </div>
+                                </div>
+                                <!-- Buttons -->
+                                <div class="col-xs-12">
+                                    <input type="button" class="btn btn-primary btn-block" value="New task"
+                                        ng-show="!main.addingTodo" ng-click="main.showAddForm()">
+                                    <input type="submit" class="btn btn-primary pull-right" value="Add"
+                                        ng-show="main.addingTodo">
+                                    <input type="button" class="btn btn-default pull-right right-buffer" value="Cancel"
+                                        ng-show="main.addingTodo" ng-click="main.hideAddForm()">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div ng-controller="AuthController as auth">
-            <input type="button" ng-click="auth.showLoginForm()" ng-hide="auth.logging">
-            <div ng-show="auth.logging">
-                <input type="text" ng-model="auth.username" placeholder="username"><br>
-                <input type="password" ng-model="auth.pasword" placeholder="password"><br>
-                <br>
-                <input type="button" ng-click="auth.register()" class="btn-primary" value="register">
-                <input type="button" ng-click="auth.login()" class="btn-primary" value="login">
-                <input type="button" ng-click="auth.logout()" ng-show="auth.isAuthed()" class="btn-primary" value="logout">
+        <!-- Login "page" -->
+        <div class="container-fluid" ng-show="!main.isAuthed()">
+            <div class="row-fluid">
+                <div class="col-md-4 col-md-offset-4 col-xs-12">
+                    <!-- Sign in form -->
+                    <form class="form-group" ng-show="!main.signingUp" ng-submit="main.login()">
+                        <label for="name">Username</label>
+                        <input type="text" name="name"class="form-control" ng-model="main.username"><br>
+                        <label for="pass">Password</label>
+                        <input type="password" name="pass" class="form-control" ng-model="main.password"><br>
+                        <p class="error">{{main.errorMessage}}</p>
+                        <input type="submit" ng-show="!main.signingUp" class="btn btn-success pull-right" value="Sign In">
+                        <p ng-show="!main.signingUp">Don't have an account? <a href ng-click="main.signUp()">Sign up</a></p>
+                    </form>
+                    <!-- Sign up form -->
+                    <form class="form-group" ng-show="main.signingUp" ng-submit="main.register()">
+                        <label for="name">Username</label>
+                        <input type="text" name="name" class="form-control" ng-model="main.username"><br>
+                        <label for="pass">Password</label>
+                        <input type="password" name="pass" class="form-control" ng-model="main.password"><br>
+                        <label for="repeat">Repeat password</label>
+                        <input type="password" name="repeat" class="form-control"
+                            ng-show="main.signingUp" ng-model="main.passwordRepeat"><br>
+                        <p class="error">{{main.errorMessage}}</p>
+                        <input type="submit" class="btn btn-success pull-right" value="Sign Up"
+                            ng-show="main.signingUp" ng-click="main.register()">
+                        <p ng-show="main.signingUp"><a href ng-click="main.signIn()">I already have an account</p>
+                    </form>
+                </div>
             </div>
         </div>
     </body>

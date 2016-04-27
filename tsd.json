@@ -9,13 +9,13 @@
       "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
     },
     "jquery/jquery.d.ts": {
-      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+      "commit": "310c247694d7f31bd2e3198f71c55221f7c3a3c7"
     },
     "angularjs/legacy/angular-scenario-1.2.d.ts": {
       "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
     },
     "angularjs/angular.d.ts": {
-      "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+      "commit": "310c247694d7f31bd2e3198f71c55221f7c3a3c7"
     },
     "angularjs/angular-component-router.d.ts": {
       "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
@@ -67,6 +67,9 @@
     },
     "jsonwebtoken/jsonwebtoken.d.ts": {
       "commit": "2d448c0a3152e8871521848c5c2c61ab4e2a2cc9"
+    },
+    "angular-jwt/angular-jwt.d.ts": {
+      "commit": "310c247694d7f31bd2e3198f71c55221f7c3a3c7"
     }
   }
 }

@@ -41,9 +41,9 @@ gulp.task('server', function() {
             .pipe(gulp.dest('server'));
 });
 
-gulp.task('app', ['ts', 'bower']);
+gulp.task('default', ['bower', 'watch']);
 
-gulp.task('watch', function() {
+gulp.task('watch', ['ts', 'server'], function() {
     gulp.watch('src/**/*', ['ts']);
     gulp.watch('server/**/*.ts', ['server']);
 });

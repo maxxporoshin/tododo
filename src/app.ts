@@ -1,121 +1,207 @@
 ///<reference path="../typings/angularjs/angular.d.ts" />
 
 (function() {
-    function authInterceptor(API: any, auth: any) {
-        return {
-            request: function(config: any) {
-                var token = auth.getToken();
-                if (config.url.indexOf(API) === 0 && token) {
-                    config.headers.Authorization = 'Bearer' + token;
-                }
-                return config;
-            },
-            response: function(res: any) {
-                console.log(res);
-                if (res.config.url.indexOf(API) === 0 && res.data.token) {
-                    auth.saveToken(res.data.token);
-                }
-                return res;
-            }
-        }
-    }
-
-    function authService($window: any) {
+    function MainController($scope: any, $http: any, jwtHelper: any) {
         var self = this;
-        self.parseJWT = function(token: any) {
-            var base64Url = token.split('.')[1];
-            var base64 = base64Url.replace('-', '+').replace('_', '/');
-            return JSON.parse($window.atob(base64));
-        };
-        self.saveToken = function(token: any) {
-            $window.localStorage['jwtToken'] = token;
-        };
-        self.getToken = function() {
-            return $window.localStorage['jwtToken'];
-        };
-        self.isAuthed = function() {
-            var token = self.getToken();
-            if (token) {
-                var params = self.parseJWT(token);
-                return Math.round(new Date().getTime() / 1000) <= params.exp;
-            } else {
-                return false;
+        self.currentUser = null;
+        self.editingTodo = false;
+        self.addingTodo = false;
+        class Todo {
+            text: string;
+            priorities: any;
+            date: Date;
+            done: boolean;
+            public constructor(){
+            this.text = '';
+            this.priorities = {
+                options: [
+                    { id: '0', name: 'Save the World!' },
+                    { id: '1', name: 'Important' },
+                    { id: '2', name: 'Worth doing' },
+                    { id: '3', name: 'Ehh, maybe, maybe' }
+                ],
+                selectedOption: { id: '2', name: 'Worth doing' }
+            };
+            this.date = new Date();
+            this.done = false;
             }
         };
-        self.logout = function() {
-            $window.localStorage.removeItem('jwtToken');
-        }
-    }
-
-    function userService($http: any, API: any, auth: any) {
-        var self = this;
-        self.getQuote = function() {
-            return $http.get(API + '/auth/quote');
+        self.todos = {
+            list: [],
+            newTodo: new Todo()
         };
-        self.register = function(username: any, password: any) {
-            return $http.post(API + '/auth/register', {
-                username: username,
-                password: password
+        self.predicate = 'date';
+        self.reverse = false;
+        self.order = function(predicate: any) {
+          self.reverse = (self.predicate === predicate) ? !self.reverse : false;
+          self.predicate = predicate;
+        };
+        self.doneFilter = {
+            options: [
+                { id: '0', done: undefined, name: 'All' },
+                { id: '1', done: true, name: 'Done' },
+                { id: '2', done: false, name: 'Actual' }
+            ],
+            selectedOption: { id: '0', done: undefined, name: 'All' }
+        };
+        self.donePredicate = { done: self.doneFilter.selectedOption.done };
+        self.showAddForm = function() {
+            self.addingTodo = true;
+            self.editingTodo = true;
+        };
+        self.hideAddForm = function() {
+            self.addingTodo = false;
+            self.editingTodo = false;
+            self.todos.newTodo = new Todo();
+        };
+        self.editTodo = function(todo: any) {
+            self.editingTodo = true;
+            todo.editing = true;
+        };
+        self.saveTodo = function(todo: any) {
+            self.updateTodo(todo, function() {
+                self.editingTodo = false;
             });
         };
-        self.login = function(username: any, password: any) {
-            return $http.post(API + '/auth/login', {
-                username: username,
-                password: password
-            });
+        self.cancelTodoEditing = function(todo: any) {
+            self.loadTodos();
+            self.editingTodo = false;
         };
-
-    }
-
-    function AuthController(user: any, auth: any) {
-        var self = this;
-        self.logging = false;
-        function handleRequest(res: any) {
-            var token = res.data ? res.data.token : null;
-            if (token) { console.log('JWT:', token); }
-            self.message = res.data.message;
+        self.doTodo = function(todo: any) {
+            todo.done = true;
+            self.updateTodo(todo, function() {});
+        };
+        self.undoTodo = function(todo:any) {
+            todo.done = false;
+            self.updateTodo(todo, function() {});
         }
+        self.deleteTodo = function(todo: any) {
+            $http.post('/deletetodo', {
+                todo: todo
+            }).then(function() {
+                self.loadTodos();
+            });
+            self.editingTodo = false;
+        };
         self.login = function() {
-            user.login(self.username, self.password)
-                .then(handleRequest, handleRequest);
+            return $http({
+                url: '/login',
+                method: 'POST',
+                skipAuthorization: true,
+                data: {
+                    username: self.username,
+                    password: self.password
+                }
+            }).then(function(res: any) {
+                if (!res.data.success) {
+                    self.errorMessage = res.data.message;
+                } else {
+                    self.clearCredentials();
+                    localStorage['id_token'] = res.data.token;
+                    self.recoverUserData();
+                }
+            });
         };
         self.register = function() {
-            user.register(self.username, self.password)
-                .then(handleRequest, handleRequest);
+            return $http({
+                url: '/register',
+                method: 'POST',
+                skipAuthorization: true,
+                data: {
+                    username: self.username,
+                    password: self.password,
+                    password_repeat: self.passwordRepeat
+                }
+            }).then(function(res: any) {
+                if (!res.data.success) {
+                    self.errorMessage = res.data.message;
+                } else {
+                    self.clearCredentials();
+                    localStorage['id_token'] = res.data.token;
+                    self.recoverUserData();
+                }
+            });
         };
-        self.getQuote = function() {
-            user.getQuote()
-                .then(handleRequest, handleRequest);
+        self.loadTodos = function() {
+            $http.get('/loadtodos').then(function(res: any) {
+                self.todos.list = res.data.todos;
+                for (let todo of self.todos.list) {
+                    todo.date = new Date(todo.date);
+                    todo.editing = false;
+                }
+            });
+        };
+        self.updateTodo = function(todo: any, callback: any) {
+            $http.post('/updatetodo', {
+                todo: todo
+            }).then(function(res: any) {
+                self.loadTodos();
+                callback();
+            });
         };
         self.logout = function() {
-            auth.logout && auth.logout();
+            self.clearCredentials();
+            self.currentUser = null;
+            delete localStorage['id_token'];
+        };
+        self.signUp = function() {
+            self.clearCredentials();
+            self.signingUp = true;
+        };
+        self.signIn = function() {
+            self.clearCredentials();
+            self.signingUp = false;
         };
         self.isAuthed = function() {
-            return auth.isAuthed() ? auth.isAuthed() : false;
+            return self.currentUser !== null;
         };
-        self.showLoginForm = function() {
-            self.logging = true;
-        };
-    }
-    function TodoListController() {
-        var todoList = this;
-        todoList.todos = [];
-        todoList.addTodo = function() {
-            if (todoList.todoText) {
-                todoList.todos.push({text: todoList.todoText, done: false});
-                todoList.todoText = '';
+        self.recoverUserData = function() {
+            var idToken = localStorage['id_token'];
+            if (idToken && !jwtHelper.isTokenExpired(idToken)) {
+                return $http.get('/user')
+                            .then(function(res: any) {
+                                self.currentUser = res.data;
+                                self.loadTodos();
+                            });
             }
         };
+        self.clearCredentials = function() {
+            self.username = '';
+            self.password = '';
+            self.passwordRepeat = '';
+            self.errorMessage = '';
+        };
+        self.addTodo = function() {
+            if (self.todos.newTodo.text) {
+                $http.post('/addtodo', {
+                    todo: self.todos.newTodo
+                }).then(function (res: any) {
+                    self.loadTodos();
+                    self.hideAddForm();
+                });
+            }
+        };
+        $scope.$watch(function() {
+            return self.currentUser;
+        }, function() {
+            self.recoverUserData();
+        }, true);
+        $scope.$watch(function() {
+            return self.doneFilter;
+        }, function() {
+            self.donePredicate.done = self.doneFilter.selectedOption.done;
+        }, true);
     }
-    var app = angular.module("ToDoDo", []);
 
-    app.controller("TodoListController", TodoListController);
-    app.factory('authInterceptor', authInterceptor);
-    app.service('user', userService);
-    app.service('auth', authService);
-    app.constant('API', '');
-    app.config(function($httpProvider: any) {
-        $httpProvider.interceptors.push('authInterceptor');
-    });
-    app.controller('AuthController', AuthController);
+    angular.module("ToDoDo", ['angular-jwt'])
+        .controller('MainController', MainController)
+        .config(function ($httpProvider: any, jwtInterceptorProvider: any) {
+            jwtInterceptorProvider.tokenGetter = ['jwtHelper', function(jwtHelper: any) {
+                var idToken = localStorage['id_token'];
+                if (idToken && !jwtHelper.isTokenExpired(idToken)) {
+                    return idToken;
+                }
+            }];
+            $httpProvider.interceptors.push('jwtInterceptor');
+        });
 })();
